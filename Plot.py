@@ -201,6 +201,69 @@ def process_new_task():
     print("Plot saved as 'Open_Connection.png'")
     plt.show()
 
+    # --- New Plots ---
+    
+    # Check for Acceleration columns
+    accel_cols = ['AccelX', 'AccelY', 'AccelZ']
+    missing_cols = [col for col in accel_cols if col not in df_multi.columns]
+    if missing_cols:
+        print(f"Error: Missing acceleration columns {missing_cols}. Cannot plot UpForce and HorizontalForce.")
+        return
+
+    # Convert to numeric
+    for col in accel_cols:
+        df_multi[col] = pd.to_numeric(df_multi[col], errors='coerce')
+    
+    # Drop rows with NaN in Accel
+    df_multi = df_multi.dropna(subset=accel_cols)
+    
+    # Calculate Magnitude of Acceleration Vector
+    accel_mag = np.sqrt(df_multi['AccelX']**2 + df_multi['AccelY']**2 + df_multi['AccelZ']**2)
+    
+    # Calculate Unit Vector X component (since vector is [scale1, 0, 0])
+    # unit_accel_x = AccelX / Magnitude
+    # Handle division by zero
+    unit_accel_x = df_multi['AccelX'] / accel_mag.replace(0, np.nan)
+    
+    # Calculate upForce (Dot Product)
+    # upForce = scale1 * unit_accel_x
+    df_multi['upForce'] = df_multi['Mapped_Force'] * unit_accel_x
+    
+    # Calculate Horizontal Force
+    # Formula: sqrt(scale1^2 - upForce^2)
+    # Note: User mentioned sqrt(M^2 - scale1^2) where M is vertical component, 
+    # but mathematically for a component M of vector Scale1, scale1 >= M.
+    # So we use sqrt(scale1^2 - M^2).
+    
+    # Use abs() to handle potential floating point errors resulting in slightly negative numbers close to zero
+    df_multi['horizontalForce'] = np.sqrt((df_multi['Mapped_Force']**2 - df_multi['upForce']**2).abs())
+    
+    # Plot upForce
+    plt.figure(figsize=(12, 6))
+    plt.plot(df_multi['Relative_Seconds'], df_multi['upForce'], label='Up Force (Vertical Component)', color='red')
+    plt.title('Up Force (Vertical Component)')
+    plt.xlabel('Time (Seconds from start)')
+    plt.ylabel('Force (Pounds)')
+    plt.grid(True, which='both', linestyle='--', linewidth=0.5)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig('Up_Force.png')
+    print("Plot saved as 'Up_Force.png'")
+    plt.show()
+    
+    # Plot Horizontal Force
+    plt.figure(figsize=(12, 6))
+    plt.plot(df_multi['Relative_Seconds'], df_multi['horizontalForce'], label='Horizontal Force', color='purple')
+    plt.title('Horizontal Force')
+    plt.xlabel('Time (Seconds from start)')
+    plt.ylabel('Force (Pounds)')
+    plt.grid(True, which='both', linestyle='--', linewidth=0.5)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig('Horizontal_Force.png')
+    print("Plot saved as 'Horizontal_Force.png'")
+    plt.show()
+
 def main():
     # Attempt Original Task
     process_original_task()

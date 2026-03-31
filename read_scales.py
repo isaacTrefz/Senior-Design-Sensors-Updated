@@ -8,17 +8,19 @@ import sys
 BAUD_RATE = 115200
 
 # File Configuration
-# These files will be created (or overwritten) when the script starts
 OUTPUT_FILES = {
     "MULTI_SCALE": "multi_scale_data.csv",
-    "SINGLE_SCALE": "single_scale_data.csv"
+    "SINGLE_SCALE": "single_scale_data.csv",
+    "LEFT_FOOT": "left_foot_data.csv",
+    "RIGHT_FOOT": "right_foot_data.csv"
 }
 
 # CSV Headers
-# Updated: Removed 'Scale2' from the MULTI_SCALE header
 CSV_HEADERS = {
-    "MULTI_SCALE": "Time, Scale1, Analog1, Analog2, Analog3, Analog4",
-    "SINGLE_SCALE": "Time, Weight"
+    "MULTI_SCALE": "Time, Scale1, Analog1, Analog2, Analog3, Analog4, AccelX, AccelY, AccelZ",
+    "SINGLE_SCALE": "Time, Weight",
+    "LEFT_FOOT": "Time, FSR1_Raw, FSR2_Raw, FSR3_Raw, FSR4_Raw",
+    "RIGHT_FOOT": "Time, FSR1_Raw, FSR2_Raw, FSR3_Raw, FSR4_Raw"
 }
 
 # To store connected devices
@@ -33,7 +35,7 @@ def handle_device(ser, device_name):
     print(f"[{device_name}] Connected. Logging to {OUTPUT_FILES[device_name]}...")
     
     target_file = OUTPUT_FILES.get(device_name)
-    line_count = 0  # Initialize counter
+    line_count = 0  
 
     try:
         while True:
@@ -62,7 +64,7 @@ def handle_device(ser, device_name):
 
 def attempt_handshake(port):
     """
-    Tries to open a COM port, listen for the 'WAITING_FOR_SYNC' message,
+    Tries to open a COM port, listen for the sync message,
     and if found, sends the current time to sync the RTC.
     """
     try:
@@ -81,6 +83,12 @@ def attempt_handshake(port):
                     break
                 elif "WAITING_FOR_SYNC_SINGLE" in line:
                     device_type = "SINGLE_SCALE"
+                    break
+                elif "WAITING_FOR_SYNC_LEFT" in line:
+                    device_type = "LEFT_FOOT"
+                    break
+                elif "WAITING_FOR_SYNC_RIGHT" in line:
+                    device_type = "RIGHT_FOOT"
                     break
         
         if device_type:
@@ -105,7 +113,7 @@ def attempt_handshake(port):
         return False
 
 def main():
-    print("--- Bluetooth Scale Data Logger ---")
+    print("--- Bluetooth Scale & FSR Data Logger ---")
     
     print("Initializing CSV files...")
     for dev_type, filename in OUTPUT_FILES.items():
@@ -127,7 +135,8 @@ def main():
                     attempt_handshake(port)
             
             time.sleep(2)
-            if len(connected_devices) == 2:
+            # Sleep longer once all 4 devices are connected
+            if len(connected_devices) == 4:
                 time.sleep(5)
         except KeyboardInterrupt:
             print("\nStopping...")
